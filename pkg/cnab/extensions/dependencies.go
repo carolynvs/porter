@@ -25,7 +25,6 @@ var DependenciesExtension = RequiredExtension{
 // Dependencies describes the set of custom extension metadata associated with the dependencies spec
 // https://github.com/cnabio/cnab-spec/blob/master/500-CNAB-dependencies.md
 type Dependencies struct {
-
 	// Sequence is a list to order the dependencies
 	Sequence []string `json:"sequence,omitempty" mapstructure:"sequence"`
 
@@ -33,8 +32,29 @@ type Dependencies struct {
 	Requires map[string]Dependency `json:"requires,omitempty" mapstructure:"requires"`
 }
 
+// ListBySequence returns the dependencies by the defined sequence,
+// if none is specified, they are unsorted.
+func (d Dependencies) ListBySequence() []Dependency {
+	deps := make([]Dependency, 0, len(d.Requires))
+	if len(d.Sequence) == 0 {
+		for depName, dep := range d.Requires {
+			dep.Name = depName
+			deps = append(deps, dep)
+		}
+	} else {
+		for _, depName := range d.Sequence {
+			dep := d.Requires[depName]
+			dep.Name = depName
+			deps = append(deps, dep)
+		}
+	}
+	return deps
+}
+
 // Dependency describes a dependency on another bundle
 type Dependency struct {
+	Name string `json:"name" mapstructure:"name"`
+
 	// Bundle is the location of the bundle in a registry, for example REGISTRY/NAME:TAG
 	Bundle string `json:"bundle" mapstructure:"bundle"`
 

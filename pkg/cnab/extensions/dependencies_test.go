@@ -2,7 +2,6 @@ package extensions
 
 import (
 	"io/ioutil"
-	"reflect"
 	"testing"
 
 	"github.com/cnabio/cnab-go/bundle"
@@ -35,7 +34,7 @@ func TestReadDependencyProperties(t *testing.T) {
 	assert.Equal(t, []string{"5.7.x"}, dep.Version.Ranges, "Dependency.Bundle.Version.Ranges is incorrect")
 }
 
-func TestSortDependenciesBySequence(t *testing.T) {
+func TestDependencies_ListBySequence(t *testing.T) {
 	sequenceMock := []string{"nginx", "storage", "mysql"}
 
 	bun := bundle.Bundle{
@@ -76,11 +75,10 @@ func TestSortDependenciesBySequence(t *testing.T) {
 	dep = deps.Requires["nginx"]
 	assert.NotNil(t, dep, "expected Dependencies.Requires to have an entry for 'nginx'")
 
-	// Get the keys out of the deps.Requires map
-	keys := reflect.ValueOf(deps.Requires).MapKeys()
+	orderedDeps := deps.ListBySequence()
 
 	// assert the bundles are sorted as sequenced
-	assert.EqualValues(t, sequenceMock[0], keys[0].Interface().(string))
-	assert.EqualValues(t, sequenceMock[1], keys[1].Interface().(string))
-	assert.EqualValues(t, sequenceMock[2], keys[2].Interface().(string))
+	assert.Equal(t, sequenceMock[0], orderedDeps[0].Name, "unexpected order of the dependencies")
+	assert.EqualValues(t, sequenceMock[1], orderedDeps[1].Name, "unexpected order of the dependencies")
+	assert.EqualValues(t, sequenceMock[2], orderedDeps[2].Name, "unexpected order of the dependencies")
 }
