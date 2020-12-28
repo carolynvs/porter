@@ -8,8 +8,13 @@ import (
 	"context"
 	"fmt"
 	"go/build"
+	"io"
 	"log"
+	"math/rand"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -21,6 +26,7 @@ import (
 	"github.com/carolynvs/magex/xplat"
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
+	"github.com/oklog/ulid"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -32,7 +38,11 @@ import (
 const (
 	registryContainer = "registry"
 	mixinsURL         = "https://cdn.porter.sh/mixins/"
+	permalinkLatest   = "latest"
+	defaultCDN        = "http://porter.azureedge.net"
 )
+
+var status *GitStatus
 
 // Ensure Mage is installed and on the PATH.
 func EnsureMage() error {
@@ -77,8 +87,7 @@ func GetMixins() error {
 		errG.Go(func() error {
 			log.Println("Installing mixin:", mixin)
 			mixinURL := mixinsURL + mixin
-			_, _, err := porter("mixin", "install", mixin, "--version", mixinTag, "--url", mixinURL).Run()
-			return err
+			return porter("mixin", "install", mixin, "--version", mixinTag, "--url", mixinURL)
 		})
 	}
 
@@ -86,14 +95,16 @@ func GetMixins() error {
 }
 
 // Run a porter command from the bin
-func porter(args ...string) sh.PreparedCommand {
+func porter(args ...string) error {
 	porterPath := filepath.Join("bin", "porter")
 	p := sh.Command(porterPath, args...)
 
 	porterHome, _ := filepath.Abs("bin")
 	p.Cmd.Env = []string{"PORTER_HOME=" + porterHome}
 
-	return p
+	_, _, err := p.Run()
+	// TODO: Prepared command is missing logic from sh.Exec, I need to include that
+	return errors.Wrapf(err, "error running porter ", strings.Join(args, " "))
 }
 
 // Run end-to-end (e2e) tests
@@ -108,6 +119,109 @@ func TestE2E() error {
 	}
 
 	return sh.RunV("go", shx.CollapseArgs("test", "-tags", "e2e", v, "./tests/e2e/...")...)
+}
+
+// Upload mixin binaries
+func PublishMixins() error {
+	deploymentId, err := newULID()
+	if err != nil {
+		return err
+	}
+
+	err = publishMixin("exec")
+	if err != nil {
+		return errors.Wrap(err, "error publishing the exec mixin")
+	}
+
+	// Get the most recent mixin feed
+	err = downloadMixinFeed()
+	if err != nil {
+		return err
+	}
+
+	localFeedPath := "bin/mixins/atom.xml"
+	err = porter("mixins", "feed", "generate", "-d", "bin/mixins", "-f", localFeedPath, "-t", "build/atom-template.xml")
+	if err != nil {
+		return errors.Wrap(err, "error generating mixin feed")
+	}
+
+	feedName := fmt.Sprintf("mixins/_feed/%s.xml", deploymentId)
+	err = shx.RunE("az", "storage", "blob", "upload", "-c", "releases", "-n", feedName, "-f", localFeedPath)
+	return errors.Wrap(err, "could not upload updated mixin feed")
+}
+
+func newULID() (string, error) {
+	g := ulid.Monotonic(rand.New(rand.NewSource(time.Now().UnixNano())), 0)
+	result, err := ulid.New(ulid.Timestamp(time.Now()), g)
+	if err != nil {
+		return "", errors.Wrap(err, "could not generate a new ULID")
+	}
+	return result.String(), nil
+}
+
+func downloadMixinFeed() error {
+	atomURL, err := url.Parse(defaultCDN)
+	if err != nil {
+		return errors.Errorf("invalid destination CDN %q", defaultCDN)
+	}
+	atomURL.Path = "/mixins/atom.xml"
+	resp, err := http.Get(atomURL.String())
+	if err != nil {
+		return errors.Wrapf(err, "could not download latest mixin feed")
+	}
+	defer resp.Body.Close()
+	f, err := os.Open("bin/mixins/atom.xml")
+	if err != nil {
+		return errors.Wrapf(err, "could not open bin/mixins/atom.xml")
+	}
+	_, err = io.Copy(f, resp.Body)
+	return errors.Wrapf(err, "error saving latest mixin feed")
+}
+
+func publishMixin(mixin string) error {
+	status := gitStatus()
+
+	// Upload the release
+	src := path.Join("bin/mixins", mixin, status.Version)
+	dest := path.Join("releases/mixins", mixin, status.Version)
+	err := shx.RunE("az", "storage", "blob", "upload-batch", "-d", dest, "-s", src)
+	if err != nil {
+		return errors.Wrapf(err, "error uploading mixin: %s", mixin)
+	}
+
+	return nil
+}
+
+type GitStatus struct {
+	// Permalink is the version alias, e.g. latest, or canary
+	Permalink string
+
+	// Version is the tag+commit hash
+	Version string
+}
+
+func gitStatus() GitStatus {
+	if status == nil {
+		status = &GitStatus{}
+
+		// Get a description of the commit, e.g. v0.30.1 (latest) or v0.30.1-32-gfe72ff73 (canary)
+		description, err := shx.OutputE("git", "describe", "--tags")
+		if err == nil {
+			status.Version = description
+		} else {
+			status.Version = "v0"
+		}
+
+		// Use latest for tagged commits, otherwise it's a canary build
+		err = shx.RunS("git", "describe", "--tags", "--exact-match")
+		if err == nil {
+			status.Permalink = "latest"
+		} else {
+			status.Permalink = "canary"
+		}
+	}
+
+	return *status
 }
 
 // Copy the cross-compiled binaries from xbuild into bin.
