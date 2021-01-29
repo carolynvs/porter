@@ -4,7 +4,9 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"get.porter.sh/porter/pkg/cnab"
 	"github.com/cnabio/cnab-go/bundle"
+	"github.com/cnabio/cnab-go/claim"
 	"github.com/cnabio/cnab-go/driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,4 +43,30 @@ func TestAddReloccation(t *testing.T) {
 	assert.Equal(t, string(data), mapping)
 	assert.Equal(t, "my.registry/microservice@sha256:cca460afa270d4c527981ef9ca4989346c56cf9b20217dcea37df1ece8120687", op.Image.Image)
 
+}
+
+func TestRuntime_ProcessBundleFromFile(t *testing.T) {
+	r := NewTestRuntime(t)
+	r.TestConfig.TestContext.AddTestFile("testdata/bundle-with-param-sources.json", "bundle.json")
+
+	b, err := r.ProcessBundleFromFile("bundle.json")
+	require.NoError(t, err, "ProcessBundleFromFile failed")
+	assert.NotEmpty(t, b, "expected a bundle")
+	assert.NotEmpty(t, r.Extensions, "expected custom extensions defined in the bundle to be processed")
+}
+
+func TestRuntime_ProcessBundleFromClaim(t *testing.T) {
+	r := NewTestRuntime(t)
+	r.TestConfig.TestContext.AddTestFile("testdata/bundle-with-param-sources.json", "bundle.json")
+
+	b, err := cnab.LoadBundle(r.Context, "bundle.json")
+	require.NoError(t, err, "ProcessBundleFromFile failed")
+	assert.NotEmpty(t, b, "expected a bundle")
+
+	c := claim.Claim{Bundle: b}
+
+	processedBundle, err := r.ProcessBundleFromClaim(c)
+	require.NoError(t, err, "ProcessBundleFromFile failed")
+	assert.Equal(t, b, processedBundle, "expected the claim's bundle to be returned")
+	assert.NotEmpty(t, r.Extensions, "expected custom extensions defined in the bundle to be processed")
 }
