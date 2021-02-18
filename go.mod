@@ -6,7 +6,7 @@ replace (
 	// porterops: contains the following patches
 	// jsonschema-lock: https://github.com/cnabio/cnab-go/pull/237
 	// k8s-driver-improvements: https://github.com/cnabio/cnab-go/pull/238
-	github.com/cnabio/cnab-go => github.com/carolynvs/cnab-go v0.13.4-0.20210201170640-4581451126c8
+	github.com/cnabio/cnab-go => /Users/carolynvs/go/src/github.com/cnabio/cnab-go
 
 	// See https://github.com/containerd/containerd/issues/3031
 	// When I try to just use the require, go is shortening it to v2.7.1+incompatible which then fails to build...

@@ -68,7 +68,7 @@ xbuild-all: xbuild-porter xbuild-mixins
 xbuild-porter: generate
 	$(MAKE) $(MAKE_OPTS) xbuild-all MIXIN=porter -f mixin.mk BINDIR=bin
 
-docker-dev:
+docker-dev: clean xbuild-all
 	docker build -t carolynvs/porter:dev -f build/images/client/Dockerfile .
 	docker push carolynvs/porter:dev
 
