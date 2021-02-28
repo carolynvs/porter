@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"get.porter.sh/porter/pkg/porter"
 )
@@ -119,20 +120,7 @@ For example, the 'debug' driver may be specified, which simply logs the info giv
 	}
 
 	f := cmd.Flags()
-	f.BoolVar(&opts.AllowAccessToDockerHost, "allow-docker-host-access", false,
-		"Controls if the bundle should have access to the host's Docker daemon with elevated privileges. See https://porter.sh/configuration/#allow-docker-host-access for the full implications of this flag.")
-	f.StringVarP(&opts.File, "file", "f", "",
-		"Path to the porter manifest file. Defaults to the bundle in the current directory.")
-	f.StringVar(&opts.CNABFile, "cnab-file", "",
-		"Path to the CNAB bundle.json file.")
-	f.StringSliceVarP(&opts.ParameterSets, "parameter-set", "p", nil,
-		"Name of a parameter set file for the bundle. May be either a named set of parameters or a filepath, and specified multiple times.")
-	f.StringSliceVar(&opts.Params, "param", nil,
-		"Define an individual parameter in the form NAME=VALUE. Overrides parameters otherwise set via --parameter-set. May be specified multiple times.")
-	f.StringSliceVarP(&opts.CredentialIdentifiers, "cred", "c", nil,
-		"Credential to use when installing the bundle. May be either a named set of credentials or a filepath, and specified multiple times.")
-	f.StringVarP(&opts.Driver, "driver", "d", porter.DefaultDriver,
-		"Specify a driver to use. Allowed values: docker, debug")
+	addBundleActionFlags(f, opts.BundleActionOptions)
 	addBundlePullFlags(f, &opts.BundlePullOptions)
 	return cmd
 }
@@ -165,20 +153,7 @@ For example, the 'debug' driver may be specified, which simply logs the info giv
 	}
 
 	f := cmd.Flags()
-	f.BoolVar(&opts.AllowAccessToDockerHost, "allow-docker-host-access", false,
-		"Controls if the bundle should have access to the host's Docker daemon with elevated privileges. See https://porter.sh/configuration/#allow-docker-host-access for the full implications of this flag.")
-	f.StringVarP(&opts.File, "file", "f", "",
-		"Path to the porter manifest file. Defaults to the bundle in the current directory.")
-	f.StringVar(&opts.CNABFile, "cnab-file", "",
-		"Path to the CNAB bundle.json file.")
-	f.StringSliceVarP(&opts.ParameterSets, "parameter-set", "p", nil,
-		"Name of a parameter set file for the bundle. May be either a named set of parameters or a filepath, and specified multiple times.")
-	f.StringSliceVar(&opts.Params, "param", nil,
-		"Define an individual parameter in the form NAME=VALUE. Overrides parameters otherwise set via --parameter-set. May be specified multiple times.")
-	f.StringSliceVarP(&opts.CredentialIdentifiers, "cred", "c", nil,
-		"Credential to use when installing the bundle. May be either a named set of credentials or a filepath, and specified multiple times.")
-	f.StringVarP(&opts.Driver, "driver", "d", porter.DefaultDriver,
-		"Specify a driver to use. Allowed values: docker, debug")
+	addBundleActionFlags(f, opts.BundleActionOptions)
 	addBundlePullFlags(f, &opts.BundlePullOptions)
 
 	return cmd
@@ -212,23 +187,10 @@ For example, the 'debug' driver may be specified, which simply logs the info giv
 	}
 
 	f := cmd.Flags()
-	f.BoolVar(&opts.AllowAccessToDockerHost, "allow-docker-host-access", false,
-		"Controls if the bundle should have access to the host's Docker daemon with elevated privileges. See https://porter.sh/configuration/#allow-docker-host-access for the full implications of this flag.")
+	addBundleActionFlags(f, opts.BundleActionOptions)
+	addBundlePullFlags(f, &opts.BundlePullOptions)
 	f.StringVar(&opts.Action, "action", "",
 		"Custom action name to invoke.")
-	f.StringVarP(&opts.File, "file", "f", "",
-		"Path to the porter manifest file. Defaults to the bundle in the current directory.")
-	f.StringVar(&opts.CNABFile, "cnab-file", "",
-		"Path to the CNAB bundle.json file.")
-	f.StringSliceVarP(&opts.ParameterSets, "parameter-set", "p", nil,
-		"Name of a parameter set file for the bundle. May be either a named set of parameters or a filepath, and specified multiple times.")
-	f.StringSliceVar(&opts.Params, "param", nil,
-		"Define an individual parameter in the form NAME=VALUE. Overrides parameters otherwise set via --parameter-set. May be specified multiple times.")
-	f.StringSliceVarP(&opts.CredentialIdentifiers, "cred", "c", nil,
-		"Credential to use when installing the bundle. May be either a named set of credentials or a filepath, and specified multiple times.")
-	f.StringVarP(&opts.Driver, "driver", "d", porter.DefaultDriver,
-		"Specify a driver to use. Allowed values: docker, debug")
-	addBundlePullFlags(f, &opts.BundlePullOptions)
 
 	return cmd
 }
@@ -263,25 +225,12 @@ For example, the 'debug' driver may be specified, which simply logs the info giv
 	}
 
 	f := cmd.Flags()
-	f.BoolVar(&opts.AllowAccessToDockerHost, "allow-docker-host-access", false,
-		"Controls if the bundle should have access to the host's Docker daemon with elevated privileges. See https://porter.sh/configuration/#allow-docker-host-access for the full implications of this flag.")
-	f.StringVarP(&opts.File, "file", "f", "",
-		"Path to the porter manifest file. Defaults to the bundle in the current directory. Optional unless a newer version of the bundle should be used to uninstall the bundle.")
-	f.StringVar(&opts.CNABFile, "cnab-file", "",
-		"Path to the CNAB bundle.json file.")
-	f.StringSliceVarP(&opts.ParameterSets, "parameter-set", "p", nil,
-		"Name of a parameter set file for the bundle. May be either a named set of parameters or a filepath, and specified multiple times.")
-	f.StringSliceVar(&opts.Params, "param", nil,
-		"Define an individual parameter in the form NAME=VALUE. Overrides parameters otherwise set via --parameter-set. May be specified multiple times.")
-	f.StringSliceVarP(&opts.CredentialIdentifiers, "cred", "c", nil,
-		"Credential to use when uninstalling the bundle. May be either a named set of credentials or a filepath, and specified multiple times.")
-	f.StringVarP(&opts.Driver, "driver", "d", porter.DefaultDriver,
-		"Specify a driver to use. Allowed values: docker, debug")
+	addBundleActionFlags(f, opts.BundleActionOptions)
+	addBundlePullFlags(f, &opts.BundlePullOptions)
 	f.BoolVar(&opts.Delete, "delete", false,
 		"Delete all records associated with the installation, assuming the uninstall action succeeds")
 	f.BoolVar(&opts.ForceDelete, "force-delete", false,
 		"UNSAFE. Delete all records associated with the installation, even if uninstall fails. This is intended for cleaning up test data and is not recommended for production environments.")
-	addBundlePullFlags(f, &opts.BundlePullOptions)
 
 	return cmd
 }
@@ -342,4 +291,21 @@ func buildBundleArchiveCommand(p *porter.Porter) *cobra.Command {
 	addBundlePullFlags(cmd.Flags(), &opts.BundlePullOptions)
 
 	return &cmd
+}
+
+func addBundleActionFlags(f *pflag.FlagSet, opts *porter.BundleActionOptions) {
+	f.BoolVar(&opts.AllowAccessToDockerHost, "allow-docker-host-access", false,
+		"Controls if the bundle should have access to the host's Docker daemon with elevated privileges. See https://porter.sh/configuration/#allow-docker-host-access for the full implications of this flag.")
+	f.StringVarP(&opts.File, "file", "f", "",
+		"Path to the porter manifest file. Defaults to the bundle in the current directory.")
+	f.StringVar(&opts.CNABFile, "cnab-file", "",
+		"Path to the CNAB bundle.json file.")
+	f.StringSliceVarP(&opts.ParameterSets, "parameter-set", "p", nil,
+		"Name of a parameter set file for the bundle. May be either a named set of parameters or a filepath, and specified multiple times.")
+	f.StringSliceVar(&opts.Params, "param", nil,
+		"Define an individual parameter in the form NAME=VALUE. Overrides parameters otherwise set via --parameter-set. May be specified multiple times.")
+	f.StringSliceVarP(&opts.CredentialIdentifiers, "cred", "c", nil,
+		"Credential to use when running the bundle. May be either a named set of credentials or a filepath, and specified multiple times.")
+	f.StringVarP(&opts.Driver, "driver", "d", porter.DefaultDriver,
+		"Specify a driver to use. Allowed values: docker, debug")
 }
