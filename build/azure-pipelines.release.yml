@@ -15,6 +15,7 @@ pool:
 variables:
   GOVERSION: "1.13.10"
   REGISTRY: "getporter"
+  DUAL_PUBLISH: true
   HAVE_SECRETS: $[ne(variables['AZURE_STORAGE_CONNECTION_STRING'], '')]
 
 stages:
@@ -157,14 +158,23 @@ stages:
             displayName: "Setup Bin"
           - task: Docker@1
             condition: and(succeeded(), eq(variables.HAVE_SECRETS, 'true'))
-            displayName: Docker Login
+            displayName: Docker Hub Login
             inputs:
               containerRegistryType: Container Registry
               dockerRegistryEndpoint: getporter-registry
               command: login
+          - task: Docker@1
+            condition: and(succeeded(), eq(variables.HAVE_SECRETS, 'true'))
+            displayName: GHCR Login
+            inputs:
+              containerRegistryType: Container Registry
+              dockerRegistryEndpoint: ghcr.io
+              command: login
           - script: make publish-images
             condition: and(succeeded(), eq(variables.HAVE_SECRETS, 'true'))
             displayName: "Publish Docker Images"
+            env:
+              REGISTRY: "$(REGISTRY)"
 
       - job: publish_example_bundles
         steps:
@@ -198,3 +208,5 @@ stages:
           - script: make publish-bundle
             condition: and(succeeded(), eq(variables.HAVE_SECRETS, 'true'))
             displayName: "Publish Example Bundles"
+            env:
+              REGISTRY: "$(REGISTRY)"

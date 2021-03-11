@@ -4,6 +4,7 @@ SHELL = bash
 MAKE_OPTS ?= --no-print-directory
 
 REGISTRY ?= getporter
+DUAL_PUBLISH ?= true
 VERSION ?= $(shell git describe --tags 2> /dev/null || echo v0)
 PERMALINK ?= $(shell git describe --tags --exact-match &> /dev/null && echo latest || echo canary)
 
@@ -120,10 +121,14 @@ publish-mixins:
 .PHONY: build-images
 build-images:
 	REGISTRY=$(REGISTRY) VERSION=$(VERSION) PERMALINK=$(PERMALINK) ./scripts/build-images.sh
+	REGISTRY=ghcr.io/getporter VERSION=$(VERSION) PERMALINK=$(PERMALINK) ./scripts/build-images.sh
 
 .PHONY: publish-images
 publish-images: build-images
 	REGISTRY=$(REGISTRY) VERSION=$(VERSION) PERMALINK=$(PERMALINK) ./scripts/publish-images.sh
+	if [[ "$(DUAL_PUBLISH)" == "true" ]]; then \
+		REGISTRY=ghcr.io/getporter VERSION=$(VERSION) PERMALINK=$(PERMALINK) ./scripts/publish-images.sh; \
+	fi
 
 start-local-docker-registry:
 	@docker run -d -p 5000:5000 --name registry registry:2
